@@ -1,0 +1,309 @@
+local P=game:GetService("Players")
+local S=game:GetService("ProximityPromptService")
+local RS=game:GetService("ReplicatedStorage")
+local L=P.LocalPlayer
+
+local firstJoinPos = Vector3.new(-372.33,-7.01,94.31)
+local secondJoinPos = Vector3.new(-368.43,-7.01,24.36)
+local selectedPos = firstJoinPos
+local TPEnabled = false
+local ExecuteCommand = nil
+
+task.spawn(function()
+	while not ExecuteCommand do
+		pcall(function()
+			local pkg = RS:WaitForChild("Packages",3)
+			if not pkg then return end
+			local net = pkg:WaitForChild("Net",3)
+			if not net then return end
+			local r = net:FindFirstChild("RE/AdminPanelService/ExecuteCommand",true)
+			if r then ExecuteCommand = r end
+		end)
+		task.wait(1)
+	end
+end)
+
+local gui = Instance.new("ScreenGui",L:WaitForChild("PlayerGui"))
+gui.ResetOnSpawn = false
+local frame = Instance.new("Frame",gui)
+frame.Size = UDim2.new(0,420,0,380)
+frame.Position = UDim2.new(0.35,0,0.26,0)
+frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+frame.BackgroundTransparency = 0
+frame.Active = true
+frame.Draggable = true
+Instance.new("UICorner",frame).CornerRadius = UDim.new(0,28)
+local stroke = Instance.new("UIStroke",frame)
+stroke.Thickness = 5
+local function rainbow(obj)
+	task.spawn(function()
+		while true do
+			for i=0,1,0.006 do
+				local hue = 0 + (0.08 * i)
+				obj.Color = Color3.fromHSV(hue,1,1)
+				task.wait(0.03)
+			end
+		end
+	end)
+end
+rainbow(stroke)
+local title = Instance.new("TextLabel",frame)
+title.Size = UDim2.new(1,0,0,45)
+title.BackgroundTransparency = 1
+title.Text = "GG/SABSWAP X STONKS HUB"
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 25
+title.TextColor3 = Color3.new(1,1,1)
+local container = Instance.new("Frame",frame)
+container.Size = UDim2.new(1,-20,1,-60)
+container.Position = UDim2.new(0,10,0,50)
+container.BackgroundTransparency = 1
+local UIList = Instance.new("UIListLayout",container)
+UIList.Padding = UDim.new(0,14)
+local function Button(text)
+	local b = Instance.new("TextButton",container)
+	b.Size = UDim2.new(1,0,0,65)
+	b.Text = text
+	b.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	b.TextColor3 = Color3.new(1,1,1)
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 20
+	b.AutoButtonColor = false
+	Instance.new("UICorner",b).CornerRadius = UDim.new(0,16)
+	local st = Instance.new("UIStroke",b)
+	st.Thickness = 3
+	rainbow(st)
+	return b
+end
+local joinBtn = Button("1st Joined Selected")
+local tpBtn   = Button("INSTANT TP: OFF")
+local espBtn  = Button("ESP")
+local desBtn  = Button("DESYNC (MUST REJOIN)")
+joinBtn.MouseButton1Click:Connect(function()
+	if selectedPos == firstJoinPos then
+		selectedPos = secondJoinPos
+		joinBtn.Text = "2nd Joined Selected"
+	else
+		selectedPos = firstJoinPos
+		joinBtn.Text = "1st Joined Selected"
+	end
+end)
+tpBtn.MouseButton1Click:Connect(function()
+	TPEnabled = not TPEnabled
+	tpBtn.Text = TPEnabled and "INSTA STEAL: ON" or "INSTA STEAL: OFF"
+end)
+local function getHRP()
+	local char = L.Character or L.CharacterAdded:Wait()
+	return char:WaitForChild("HumanoidRootPart")
+end
+local function equipCarpet()
+	local bp=L:WaitForChild("Backpack")
+	local char=L.Character or L.CharacterAdded:Wait()
+	for _,v in ipairs(bp:GetChildren()) do
+		if v:IsA("Tool") and string.find(string.lower(v.Name),"carpet") then
+			v.Parent=char
+			repeat task.wait() until v.Parent==char
+			return
+		end
+	end
+end
+local function runOnceAll()
+	for _,pl in pairs(P:GetPlayers()) do
+		if pl~=L and ExecuteCommand then
+			pcall(function()
+				ExecuteCommand:FireServer(pl,"balloon")
+				ExecuteCommand:FireServer(pl,"rocket")
+				ExecuteCommand:FireServer(pl,"tiny")
+				ExecuteCommand:FireServer(pl,"inverse")
+			end)
+		end
+	end
+	if ExecuteCommand then
+		pcall(function()
+			ExecuteCommand:FireServer(L,"ragdoll")
+		end)
+	end
+end
+local holding=false
+local triggered=false
+S.PromptButtonHoldBegan:Connect(function(p)
+	if not TPEnabled or p.ActionText ~= "Steal" then return end
+	holding=true
+	triggered=false
+	local start=tick()
+	local equipped=false
+	local done=false
+	task.spawn(function()
+		while holding and not done do
+			task.wait()
+			local t=tick()-start
+			if t>=1.30 and not triggered then
+				triggered=true
+				runOnceAll()
+			end
+			if t>=1.49 and not equipped then
+				equipCarpet()
+				equipped=true
+			end
+			if t>=1.50 then
+				getHRP().CFrame = CFrame.new(selectedPos)
+				done=true
+			end
+		end
+	end)
+end)
+S.PromptButtonHoldEnded:Connect(function(p)
+	if p.ActionText ~= "Steal" then return end
+	holding=false
+end)
+local ESP_ENABLED=false
+local SkeletonPairs={{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"},{"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"}}
+local function ClearESP(char)
+	for _,v in ipairs(char:GetChildren()) do
+		if v.Name=="RUBEN_ESP" then v:Destroy() end
+	end
+end
+local function CreateSkeleton(char)
+	local folder=Instance.new("Folder",char)
+	folder.Name="RUBEN_ESP"
+	for _,p in ipairs(SkeletonPairs) do
+		local a=char:FindFirstChild(p[1])
+		local b=char:FindFirstChild(p[2])
+		if a and b then
+			local att0=Instance.new("Attachment",a)
+			local att1=Instance.new("Attachment",b)
+			local beam=Instance.new("Beam",folder)
+			beam.Attachment0=att0
+			beam.Attachment1=att1
+			beam.Width0=0.18
+			beam.Width1=0.18
+			beam.Color=ColorSequence.new(Color3.new(1,1,1))
+			beam.FaceCamera=true
+		end
+	end
+end
+local function CreateName(char,player)
+	local head=char:FindFirstChild("Head")
+	if not head then return end
+	local b=Instance.new("BillboardGui",char)
+	b.Name="RUBEN_ESP"
+	b.Size=UDim2.new(6,0,1.5,0)
+	b.AlwaysOnTop=true
+	b.Adornee=head
+	local t=Instance.new("TextLabel",b)
+	t.Size=UDim2.new(1,0,1,0)
+	t.BackgroundTransparency=1
+	t.Text=player.Name
+	t.TextColor3=Color3.new(1,1,1)
+	t.TextStrokeTransparency=0
+	t.Font=Enum.Font.GothamBold
+	t.TextSize=20
+end
+local function CreateHighlight(char)
+	local h=Instance.new("Highlight",char)
+	h.Name="RUBEN_ESP"
+	h.FillColor=Color3.new(1,1,1)
+	h.OutlineColor=Color3.new(1,1,1)
+	h.FillTransparency=0.85
+	h.OutlineTransparency=0
+end
+local function ApplyESP(pl)
+	if pl==L then return end
+	local function setup(char)
+		char:WaitForChild("HumanoidRootPart",5)
+		if not ESP_ENABLED then return end
+		ClearESP(char)
+		CreateHighlight(char)
+		CreateSkeleton(char)
+		CreateName(char,pl)
+	end
+	pl.CharacterAdded:Connect(setup)
+	if pl.Character then setup(pl.Character) end
+end
+for _,pl in ipairs(P:GetPlayers()) do
+	ApplyESP(pl)
+end
+P.PlayerAdded:Connect(ApplyESP)
+espBtn.MouseButton1Click:Connect(function()
+	ESP_ENABLED = not ESP_ENABLED
+	for _,pl in ipairs(P:GetPlayers()) do
+		if pl.Character then
+			if not ESP_ENABLED then
+				ClearESP(pl.Character)
+			else
+				ApplyESP(pl)
+			end
+		end
+	end
+end)
+local DESYNCFLAGS={{"S2PhysicsSenderRate","15000"},{"GameNetPVHeaderRotationalVelocityZeroCutoffExponent","-5000"},{"GameNetPVHeaderLinearVelocityZeroCutoffExponent","-5000"},{"AngularVelociryLimit","360"},{"PhysicsSenderMaxBandwidthBps","20000"},{"MaxDataPacketPerSend","2147483647"},{"ServerMaxBandwith","52"},{"SimExplicitlyCappedTimestepMultiplier","2147483646"},{"TimestepArbiterVelocityCriteriaThresholdTwoDt","2147483646"},{"MaxTimestepMultiplierBuoyancy","2147483647"},{"MaxTimestepMultiplierAcceleration","2147483647"},{"MaxTimestepMultiplierContstraint","2147483647"},{"LargeReplicatorWrite5","true"},{"LargeReplicatorRead5","true"},{"LargeReplicatorEnabled9","true"},{"NextGenReplicatorEnabledWrite4","true"}}
+local function StartDesync()
+	for _,flag in ipairs(DESYNCFLAGS) do
+		pcall(function()
+			setfflag(flag[1],flag[2])
+		end)
+	end
+end
+local function StopDesync()
+	pcall(function()
+		setfflag("S2PhysicsSenderRate","60")
+	end)
+end
+local desyncActive=false
+desBtn.MouseButton1Click:Connect(function()
+	desyncActive = not desyncActive
+	if desyncActive then
+		StartDesync()
+	else
+		StopDesync()
+	end
+end)
+print("STONKS HUB FINAL Loaded")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LP = Players.LocalPlayer
+local PS = LP:WaitForChild("PlayerScripts")
+local NORMAL_SPEED = 16
+local NORMAL_JUMP = 50
+local MAX_SAFE_SPEED = 55
+local MAX_UPWARD_Y = 60
+local MAX_DOWNWARD_Y = -120
+local function getControls()
+    local pm = PS:FindFirstChild("PlayerModule")
+    if not pm then return nil end
+    return require(pm):GetControls()
+end
+local function clearRagdoll(char)
+    for _,v in ipairs(char:GetDescendants()) do
+        if v:IsA("BallSocketConstraint") or v:IsA("HingeConstraint") then
+            v:Destroy()
+        elseif v:IsA("Motor6D") then
+            v.Enabled = true
+        end
+    end
+end
+RunService.Heartbeat:Connect(function()
+    local char = LP.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not root then return end
+    local controls = getControls()
+    if controls then controls:Enable() end
+    hum.PlatformStand = false
+    hum.AutoRotate = true
+    hum.Sit = false
+    if hum.WalkSpeed < NORMAL_SPEED then hum.WalkSpeed = NORMAL_SPEED end
+    if hum.JumpPower < NORMAL_JUMP then hum.JumpPower = NORMAL_JUMP end
+    hum:ChangeState(Enum.HumanoidStateType.Running)
+    clearRagdoll(char)
+    local vel = root.AssemblyLinearVelocity
+    local y = vel.Y
+    if y > MAX_UPWARD_Y then y = MAX_UPWARD_Y elseif y < MAX_DOWNWARD_Y then y = MAX_DOWNWARD_Y end
+    if Vector3.new(vel.X,0,vel.Z).Magnitude > MAX_SAFE_SPEED then
+        local mv = hum.MoveDirection
+        root.AssemblyLinearVelocity = Vector3.new(mv.X * hum.WalkSpeed,y,mv.Z * hum.WalkSpeed)
+    else
+        root.AssemblyLinearVelocity = Vector3.new(vel.X,y,vel.Z)
+    end
+end)
